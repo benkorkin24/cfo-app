@@ -751,7 +751,7 @@ function hypo(ctx,cx,cy,R,r,d,turns,rot,steps){ // hypotrochoid: the classic gui
 function rosette(ctx,cx,cy,size,colA,colB,density=1){
   ctx.lineWidth=Math.max(.35,size/420);
   // outer lace, middle petals, inner knot — each a family of rotated hypotrochoids
-  const layers=[[1,.25,.55,.32,colA],[.74,.185,.42,.26,colA],[.42,.12,.2,.4,colB]];
+  const layers=[[1,.25,.55,.42,colA],[.74,.185,.42,.36,colA],[.42,.12,.2,.5,colB]];
   layers.forEach(([R,r,d,a,col],li)=>{
     const k=Math.max(3,Math.round(6*density));
     ctx.strokeStyle=col;ctx.globalAlpha=a;
