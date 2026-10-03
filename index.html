@@ -750,13 +750,15 @@ function hypo(ctx,cx,cy,R,r,d,turns,rot,steps){ // hypotrochoid: the classic gui
 }
 function rosette(ctx,cx,cy,size,colA,colB,density=1){
   ctx.lineWidth=Math.max(.35,size/420);
-  const layers=[[1,.29,.62,.55],[.82,.21,.5,.4],[.6,.17,.36,.35]];
-  layers.forEach(([R,r,d,a],li)=>{
-    const k=Math.round(10*density);
-    for(let j=0;j<k;j++){ctx.strokeStyle=j%2?colB:colA;ctx.globalAlpha=a;hypo(ctx,cx,cy,R*size,r*size,d*size,7,j/k*Math.PI*2/7+li*.2,1400)}
+  // outer lace, middle petals, inner knot — each a family of rotated hypotrochoids
+  const layers=[[1,.25,.55,.32,colA],[.74,.185,.42,.26,colA],[.42,.12,.2,.4,colB]];
+  layers.forEach(([R,r,d,a,col],li)=>{
+    const k=Math.max(3,Math.round(6*density));
+    ctx.strokeStyle=col;ctx.globalAlpha=a;
+    for(let j=0;j<k;j++)hypo(ctx,cx,cy,R*size,r*size,d*size,li===2?3:4,j/k*Math.PI*2/(li===2?12:16)+li*.11,1600);
   });
-  ctx.globalAlpha=.5;ctx.strokeStyle=colB;
-  for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(cx,cy,size*(1.04+i*.025),0,Math.PI*2);ctx.stroke()}
+  ctx.strokeStyle=colB;
+  [[1.06,.55],[1.085,.35],[.3,.5],[.27,.3]].forEach(([f,a])=>{ctx.globalAlpha=a;ctx.beginPath();ctx.arc(cx,cy,size*f,0,Math.PI*2);ctx.stroke()});
   ctx.globalAlpha=1;
 }
 function rosetteURL(px,bg,colA,colB){
@@ -780,7 +782,7 @@ function drawStatement(){
   // interference wave band (banknote background engraving)
   x.lineWidth=.6;
   for(let i=0;i<46;i++){
-    x.strokeStyle=i%3?eng2:eng; x.globalAlpha=.16+(i%5===0?.08:0); x.beginPath();
+    x.strokeStyle=i%3?eng2:eng; x.globalAlpha=.2+(i%5===0?.1:0); x.beginPath();
     for(let px=0;px<=w;px+=4){const t=px/w;
       const y=h*.58+Math.sin(t*9.5+i*.13)*h*.13*Math.sin(t*2.1+.6)+Math.sin(t*31+i*.4)*3+(i-23)*1.9;
       px?x.lineTo(px,y):x.moveTo(px,y)}
@@ -788,9 +790,9 @@ function drawStatement(){
   }
   x.globalAlpha=1;
   // engraved medallion on the open (left) side
-  const r=Math.min(h*.44,w*.22), cx=Math.max(r+24,w*.17), cy=h*.46;
+  const r=Math.min(h*.38,w*.2), cx=Math.max(r+36,w*.16), cy=h*.44;
   x.fillStyle=navy; x.globalAlpha=.55; x.beginPath(); x.arc(cx,cy,r*1.1,0,Math.PI*2); x.fill(); x.globalAlpha=1;
-  rosette(x,cx,cy,r,eng2,brass,1.4);
+  rosette(x,cx,cy,r,eng2,brass,1);
   // fine horizontal ruling, like a statement form
   x.strokeStyle=brass; x.globalAlpha=.35; x.lineWidth=.5;
   x.beginPath(); x.moveTo(w-34,h-62.5); x.lineTo(w*.42,h-62.5); x.stroke(); x.globalAlpha=1;
