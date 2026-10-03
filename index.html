@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ה-CFO שלי</title>
+<meta name="description" content="סוכן פיננסי אישי: פרופיל הכנסות והוצאות, ציד דליפות, החזר חובות, ריבית על המזומן, דמי ניהול ובדיקה חודשית.">
+<meta name="theme-color" content="#143a2e">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ה-CFO שלי">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <div>
+      <h1>ה-CFO שלי</h1>
+      <p class="sub">הסוכן קורא ומחשב. אתה מחליט ולוחץ.</p>
+    </div>
+  </div>
+</header>
+
+<main id="app">
+  <!-- HOME -->
+  <section class="view active" id="view-home">
+    <div class="hero">
+      <div class="hero-label">כסף פנוי בחודש (ממוצע)</div>
+      <div class="hero-num mono" id="free-cash">—</div>
+      <div class="hero-sub" id="free-cash-sub">ייבא 12 חודשי תנועות כדי לראות את המספר האמיתי</div>
+    </div>
+    <div class="ledger" id="profile-table"></div>
+
+    <h2 class="sec">הסוכן ממליץ החודש</h2>
+    <ol class="actions" id="advisor"></ol>
+
+    <h2 class="sec">תוכנית 30 יום <span class="pill mono" id="plan-progress">0/0</span></h2>
+    <div id="checklist"></div>
+
+    <div class="rules">
+      <h3>4 הכללים</h3>
+      <ul>
+        <li>ה-AI קורא, אתה פועל.</li>
+        <li>קוד לחישובים, gov.il לכללים.</li>
+        <li>בלי סיסמאות, בלי קודי SMS, בלי שיתוף מסך עם "יועצים".</li>
+        <li>אף אחד אמיתי לא פונה ראשון בטלגרם או בוואטסאפ.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- TRANSACTIONS -->
+  <section class="view" id="view-tx">
+    <h2 class="sec">ייבוא תנועות</h2>
+    <div class="card">
+      <p class="muted">ייצא מהבנק ומכל חברת אשראי (ישראכרט / מקס / כאל) קובץ Excel או CSV של 12 חודשים. הקובץ נקרא רק בטלפון שלך. מספרים ארוכים (כרטיס, חשבון, ת"ז) נמחקים אוטומטית מתיאורי העסקאות.</p>
+      <div class="row">
+        <label class="seg"><input type="radio" name="src" value="bank" checked><span>חשבון בנק</span></label>
+        <label class="seg"><input type="radio" name="src" value="card"><span>כרטיס אשראי</span></label>
+      </div>
+      <label class="btn primary file-btn">בחר קובץ
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" hidden>
+      </label>
+      <div id="mapper"></div>
+    </div>
+
+    <details class="card">
+      <summary>הוספת תנועה ידנית</summary>
+      <form id="manual-form" class="grid2">
+        <label>תאריך<input type="date" name="date" required></label>
+        <label>סכום ₪ (הוצאה במינוס)<input type="number" step="0.01" name="amount" required></label>
+        <label class="full">בית עסק / תיאור<input name="merchant" required></label>
+        <button class="btn primary full">הוסף</button>
+      </form>
+    </details>
+
+    <h2 class="sec">תנועות <span class="pill mono" id="tx-count">0</span></h2>
+    <div class="row filters">
+      <select id="f-month"></select>
+      <select id="f-cat"></select>
+      <input id="f-q" placeholder="חיפוש">
+    </div>
+    <div id="tx-list" class="tx-list"></div>
+  </section>
+
+  <!-- LEAKS + DEBT -->
+  <section class="view" id="view-leaks">
+    <h2 class="sec">שלב 2 · ציד דליפות</h2>
+    <div class="card stat-row">
+      <div><div class="k">חיובים חוזרים בשנה</div><div class="v mono" id="leak-total">—</div></div>
+      <div><div class="k">חיסכון מסומן לביטול</div><div class="v mono good" id="leak-saving">—</div></div>
+      <div><div class="k">עמלות וריבית בשנה</div><div class="v mono bad" id="fees-total">—</div></div>
+    </div>
+    <p class="muted small">ביטול הוראת קבע אפשר לבד באפליקציית הבנק. חבילת סלולר תחרותית: כ-20–27 ₪ לחודש (יוני 2026). ביטוח חובה: השווה במחשבון הרשמי של רשות שוק ההון.</p>
+    <div id="leaks"></div>
+
+    <h2 class="sec">שלב 3 · יציאה מחובות (שיטת המפולת)</h2>
+    <div class="card">
+      <p class="muted small">משיכת יתר במסגרת עולה בממוצע כ-11.9%, חריגה עד 18.55%, אשראי בכרטיס 14–15.5%. להחזיר חוב ב-12% = תשואה מובטחת של 12%.</p>
+      <form id="debt-form" class="grid2">
+        <label class="full">שם החוב<input name="name" placeholder="מינוס בבנק / הלוואה / קרדיט" required></label>
+        <label>יתרה ₪<input type="number" name="balance" required></label>
+        <label>ריבית שנתית %<input type="number" step="0.01" name="rate" required></label>
+        <label class="full">תשלום מינימלי לחודש ₪<input type="number" name="min" value="0"></label>
+        <button class="btn full">הוסף חוב</button>
+      </form>
+      <div id="debts"></div>
+      <label class="inline">סכום חודשי להחזר (מעבר למינימום) ₪ <input type="number" id="debt-extra" class="mono"></label>
+      <div id="debt-plan"></div>
+    </div>
+  </section>
+
+  <!-- MONEY -->
+  <section class="view" id="view-money">
+    <h2 class="sec">שלב 4 · "סוויפ" ידני של המזומן</h2>
+    <div class="card">
+      <div class="grid2">
+        <label>יתרה בעו"ש היום ₪<input type="number" id="sw-balance" class="mono"></label>
+        <label>הוצאה חודשית ₪<input type="number" id="sw-spend" class="mono"></label>
+        <label>הוצאות קבועות לחודש ₪<input type="number" id="sw-fixed" class="mono"></label>
+        <label>חודשי קרן חירום<input type="number" id="sw-months" value="4" min="3" max="6" class="mono"></label>
+        <label>כרית מעל השפל השנתי ₪<input type="number" id="sw-cushion" value="2000" class="mono"></label>
+        <label>ריבית פיקדון/קרן כספית %<input type="number" step="0.05" id="sw-rate" value="3.0" class="mono"></label>
+        <label>אינפלציה צפויה %<input type="number" step="0.1" id="sw-infl" value="1.5" class="mono"></label>
+      </div>
+      <div id="sweep-out"></div>
+    </div>
+
+    <h2 class="sec">שלב 5 · דמי ניהול בפנסיה</h2>
+    <div class="card">
+      <div class="grid2">
+        <label>צבירה היום ₪<input type="number" id="pn-bal" class="mono" value="100000"></label>
+        <label>הפקדה חודשית ₪<input type="number" id="pn-dep" class="mono" value="2000"></label>
+        <label>דמי ניהול מהפקדה %<input type="number" step="0.01" id="pn-fd" class="mono" value="2"></label>
+        <label>דמי ניהול מצבירה %<input type="number" step="0.01" id="pn-fs" class="mono" value="0.5"></label>
+        <label>גיל<input type="number" id="pn-age" class="mono" value="35"></label>
+        <label>תשואה ברוטו שנתית %<input type="number" step="0.1" id="pn-r" class="mono" value="7"></label>
+      </div>
+      <div id="pension-out"></div>
+      <p class="muted small">ההשוואה מול קרן ברירת מחדל (1% מהפקדה · 0.22% מצבירה). חישוב להמחשה, ללא מס ואינפלציה. מקסימום חוקי: 6% מהפקדה · 0.5% מצבירה.</p>
+    </div>
+
+    <h2 class="sec">שלב 6 · כסף שכבר שלך</h2>
+    <div class="links">
+      <a class="link-card" href="https://itur.mof.gov.il/" target="_blank" rel="noopener"><b>הר הכסף</b><span>חסכונות פנסיה, השתלמות וגמל לא פעילים</span></a>
+      <a class="link-card" href="https://harb.cma.gov.il/" target="_blank" rel="noopener"><b>הר הביטוח</b><span>כל הפוליסות שלך — חפש כפל ביטוחים</span></a>
+      <a class="link-card" href="https://www.swiftness.co.il/" target="_blank" rel="noopener"><b>המסלקה הפנסיונית</b><span>דוח אחד עם כל החיסכון ארוך הטווח ודמי הניהול</span></a>
+      <a class="link-card" href="https://www.gov.il/he/departments/israel_tax_authority/govil-landing-page" target="_blank" rel="noopener"><b>החזר מס</b><span>6 שנים אחורה: החלפת עבודה, שני מעסיקים, תואר, תרומות</span></a>
+      <a class="link-card" href="https://www.creditdata.org.il/" target="_blank" rel="noopener"><b>דוח נתוני אשראי</b><span>דוח חינמי אחד בשנה</span></a>
+    </div>
+    <p class="muted small">אזהרה: שירותי "איתור כספים" מזויפים מתפשטים. הכלים הרשמיים חינמיים ונמצאים ב-gov.il. לעולם אל תשלם מראש ואל תמסור קודי כניסה.</p>
+  </section>
+
+  <!-- AGENT -->
+  <section class="view" id="view-agent">
+    <h2 class="sec">שלב 7 · בדיקה חודשית (20 דקות)</h2>
+    <div id="review"></div>
+
+    <h2 class="sec">הסוכן (Claude)</h2>
+    <div class="card">
+      <p class="muted small">אופציונלי. כדי לשאול את הסוכן ישירות מהאפליקציה צריך מפתח API אישי מ-console.anthropic.com. המפתח נשמר רק בטלפון. לסוכן נשלח <b>סיכום מצטבר בלבד</b> (סכומים לפי קטגוריה וחודש, חיובים חוזרים) — בלי תנועות בודדות ובלי מספרי חשבון.</p>
+      <div class="row">
+        <input type="password" id="api-key" placeholder="sk-ant-…" autocomplete="off" class="mono grow">
+        <button class="btn" id="save-key">שמור</button>
+      </div>
+      <div id="chat" class="chat"></div>
+      <form id="ask-form" class="row">
+        <input id="ask-input" class="grow" placeholder="למשל: מה יגרום לתוכנית שלי להיכשל?">
+        <button class="btn primary">שאל</button>
+      </form>
+      <div class="chips" id="quick-asks"></div>
+    </div>
+
+    <h2 class="sec">ספריית פרומפטים (להדבקה בכל צ'אט)</h2>
+    <p class="muted small">"העתק עם הנתונים" מצרף את הסיכום המצטבר שלך. לפני ההדבקה: כבה שימוש לאימון ואת הזיכרון באפליקציית ה-AI.</p>
+    <div id="prompts"></div>
+
+    <h2 class="sec">גיבוי</h2>
+    <div class="card row wrap">
+      <button class="btn" id="export-json">ייצוא גיבוי</button>
+      <label class="btn">שחזור מגיבוי<input type="file" id="import-json" accept=".json" hidden></label>
+      <button class="btn danger" id="wipe">מחיקת כל הנתונים</button>
+    </div>
+    <p class="disclaimer">תוכן חינוכי בלבד, מבוסס על המדריך AI Wealth Guide (Micha.Stocks, ספטמבר 2026). אינו ייעוץ השקעות, מס או פנסיה ואינו המלצה על מוצר. נתונים ושיעורים נכונים לספטמבר 2026 וישתנו — אמת מול מקורות רשמיים או בעל רישיון לפני פעולה.</p>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="ניווט">
+  <button data-view="home" class="active"><span class="ti">◉</span>בית</button>
+  <button data-view="tx"><span class="ti">≡</span>תנועות</button>
+  <button data-view="leaks"><span class="ti">◌</span>דליפות</button>
+  <button data-view="money"><span class="ti">₪</span>ריבית</button>
+  <button data-view="agent"><span class="ti">✦</span>סוכן</button>
+</nav>
+<div id="toast" class="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
