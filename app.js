@@ -84,11 +84,11 @@ function autoCat(t) {
 // ---------- import ----------
 let pending = null;
 const HDR = {
-  date: /תאריך עסקה|תאריך רכישה|תאריך ערך|^תאריך|date/i,
-  merchant: /שם בית ה?עסק|בית עסק|תיאור|תאור|פרטים|הפעולה|description|merchant/i,
-  amount: /סכום חיוב|סכום החיוב|סכום בש"ח|^סכום|amount/i,
-  debit: /חובה|debit/i,
-  credit: /זכות|credit/i
+  date: [/תאריך עסקה/, /תאריך רכישה/, /^תאריך$/, /תאריך/, /date/i],
+  merchant: [/שם בית ה?עסק/, /בית עסק/, /תיאור|תאור/, /פרטים/, /הפעולה/, /description|merchant/i],
+  amount: [/סכום חיוב|סכום החיוב/, /סכום בש"ח/, /^סכום/, /סכום/, /amount/i],
+  debit: [/חובה|debit/i],
+  credit: [/זכות|credit/i]
 };
 function strip(s) { return String(s ?? "").replace(/\d{6,}/g, "").replace(/\s+/g, " ").trim(); }
 function parseAmount(v) {
@@ -102,7 +102,7 @@ function parseAmount(v) {
   return neg ? -Math.abs(n) : n;
 }
 function parseDate(v) {
-  if (v instanceof Date && !isNaN(v)) return iso(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  if (v instanceof Date && !isNaN(v)) { const d = new Date(v.getTime() + 12 * 36e5); return iso(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
   if (typeof v === "number" && v > 20000 && v < 80000) {
     const d = new Date(Math.round((v - 25569) * 864e5));
     return iso(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
@@ -126,7 +126,8 @@ async function readFile(file) {
     let text = new TextDecoder("utf-8").decode(buf);
     if (text.includes("�")) text = new TextDecoder("windows-1255").decode(buf);
     if (window.XLSX) {
-      const wb = XLSX.read(text, { type: "string", cellDates: true });
+      // raw: keep dd/mm/yyyy as text so it isn't misread as a US date
+      const wb = XLSX.read(text, { type: "string", raw: true });
       return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
     }
     return text.split(/\r?\n/).map((l) => l.split(","));
@@ -147,11 +148,17 @@ function detect(rows) {
   for (let i = 0; i < Math.min(rows.length, 40); i++) {
     const r = rows[i].map((c) => String(c));
     let score = 0;
-    for (const re of Object.values(HDR)) if (r.some((c) => re.test(c.trim()))) score++;
+    for (const res of Object.values(HDR)) if (r.some((c) => res.some((re) => re.test(c.trim())))) score++;
     if (score > bestScore) { bestScore = score; hi = i; }
   }
   const header = rows[hi].map((c) => String(c).trim());
-  const find = (re, skip = []) => header.findIndex((c, i) => c && re.test(c) && !skip.includes(i));
+  const find = (res, skip = []) => {
+    for (const re of res) {
+      const i = header.findIndex((c, j) => c && re.test(c) && !skip.includes(j));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
   const date = find(HDR.date);
   const merchant = find(HDR.merchant, [date]);
   const debit = find(HDR.debit);
@@ -260,7 +267,9 @@ function analyze() {
     if (ms.size >= Math.max(3, 0.75 * n) && cv < 0.25) { fixed += total; g.kind = "fixed"; }
     else if (n >= 6 && ms.size <= 2 && mean >= 400) { yearly += total; g.kind = "yearly"; }
     else { variable += total; g.kind = "variable"; }
-    if (ms.size >= 3 || (g.cat === "subs" && ms.size >= 2)) {
+    // leaks = steady repeat charges (subscriptions, bills), not variable shopping like groceries
+    const leakCat = !["housing", "food", "transport"].includes(g.cat);
+    if (leakCat && ((ms.size >= 3 && (cv < 0.35 || ["subs", "insurance"].includes(g.cat))) || (g.cat === "subs" && ms.size >= 2))) {
       const perMonth = total / ms.size;
       const first = amts.slice(0, 2), last = amts.slice(-2);
       const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
@@ -375,10 +384,10 @@ function renderAdvisor() {
   const pn = pensionCalc();
   if (S.settings.pnTouched && pn.gap > 1000) acts.push({ v: pn.gap / Math.max(1, pn.years), t: `דמי הניהול שלך עולים כ-${money(pn.gap)} עד גיל 67 לעומת קרן ברירת מחדל. שלח לקרן בקשה להורדה.` });
   const rv = reviewData();
-  if (rv && rv.flags.length) acts.push({ v: rv.flags[0].diff * 12, t: `ב${monthLabel(rv.month)} "${CATS[rv.flags[0].cat]}" היה ${pct(rv.flags[0].ratio - 1, 0)} מעל הממוצע (${money(rv.flags[0].diff)}).` });
-  if (S.tx.length && A.avg.free > 0 && !S.checklist.payfirst) acts.push({ v: A.avg.free * 0.5, t: `קבע הוראת קבע "שלם לעצמך קודם" ביום המשכורת: ${money(Math.floor(A.avg.free * 0.8 / 100) * 100)} לחודש.` });
+  if (rv && rv.flags.length) acts.push({ v: rv.flags[0].diff * 3, t: `ב${monthLabel(rv.month)} "${CATS[rv.flags[0].cat]}" היה ${pct(rv.flags[0].ratio - 1, 0)} מעל הממוצע (${money(rv.flags[0].diff)}).` });
+  if (S.tx.length && A.avg.free > 0 && !S.checklist.payfirst) acts.push({ v: A.avg.free * 12 * 0.8 * 0.03, t: `קבע הוראת קבע "שלם לעצמך קודם" ביום המשכורת: ${money(Math.floor(A.avg.free * 0.8 / 100) * 100)} לחודש.` });
   acts.sort((a, b) => b.v - a.v);
-  $("#advisor").innerHTML = acts.slice(0, 4).map((a) => `<li>${esc(a.t)}</li>`).join("") || `<li>הכל נראה מסודר. תריץ את הבדיקה החודשית ב-1 לחודש.</li>`;
+  $("#advisor").innerHTML = acts.slice(0, 5).map((a) => `<li>${esc(a.t)}</li>`).join("") || `<li>הכל נראה מסודר. תריץ את הבדיקה החודשית ב-1 לחודש.</li>`;
 }
 
 const PLAN = [
