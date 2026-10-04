@@ -208,6 +208,9 @@ td select{padding:3px 6px;font-size:.82rem;width:auto}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{border:1px solid var(--rule);background:var(--sheet);border-radius:2px;padding:3px 10px;font-size:.8rem;cursor:pointer;color:var(--ink)}
 .chips button:hover{border-color:var(--engrave)}
+.conn{border:1px solid var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--sheet));border-radius:var(--r);padding:12px 14px;font-size:.9rem}
+.conn b{display:block;margin-bottom:2px}
+.conn .btn{margin-top:8px}
 .inbox-item{border-inline-start:2px solid var(--brass);padding:4px 12px;font-size:.88rem}
 .inbox-item.done{border-color:var(--gain)}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--navy);color:var(--on-navy);padding:9px 18px;border-radius:var(--r);border:1px solid var(--brass);font-size:.88rem;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
@@ -399,7 +402,7 @@ td select{padding:3px 6px;font-size:.82rem;width:auto}
       <div class="vh"><span class="seal" aria-hidden="true"><span>⚙</span></span><div><h2>חיבור והגדרות</h2><p>הקוד של הלוח ציבורי ב-GitHub, אבל הנתונים שלך נשמרים במאגר פרטי (benkorkin24/cfo-data) שרק אתה והסוכן ניגשים אליו. המפתחות נשמרים רק בדפדפן הזה.</p></div></div>
       <div class="grid g2">
         <div class="panel">
-          <h3>סנכרון עם הסוכן (GitHub)</h3>
+          <h3>1. חיבור הסוכן (חובה)</h3><p class="small muted" style="margin-top:-4px">בלי זה הסוכן לא רואה את הנתונים שלך.</p>
           <ol class="small" style="padding-inline-start:18px;margin:0 0 10px">
             <li>פתח את <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">יצירת טוקן ב-GitHub</a>.</li>
             <li>Repository access: <b>Only select repositories</b> ← <span class="num">cfo-data</span>.</li>
@@ -414,8 +417,8 @@ td select{padding:3px 6px;font-size:.82rem;width:auto}
           <p class="small" id="gh-status"></p>
         </div>
         <div class="panel">
-          <h3>שיחה עם Claude מתוך הלוח</h3>
-          <p class="small muted">אופציונלי. מפתח API מ-<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. נשלח לסוכן סיכום מצטבר בלבד, בלי תנועות בודדות ובלי מספרי חשבון. בלי מפתח: שמור שאלה כ"משימה לסוכן" ואענה בסבב הבא.</p>
+          <h3>2. תשובות מיידיות (רשות)</h3>
+          <p class="small muted">אופציונלי. מפתח API מ-<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. נשלח לסוכן סיכום מצטבר בלבד, בלי תנועות בודדות ובלי מספרי חשבון. בלי מפתח הכל עובד: שאלות נשלחות לסוכן ונענות בסבב הבא (עד 3 שעות), או מיד כשתבקש בשיחה עם Claude.</p>
           <div class="form">
             <label class="f" style="grid-column:1/-1">מפתח Anthropic<input type="password" id="ai-key" autocomplete="off" placeholder="sk-ant-…"></label>
             <button class="btn primary" id="ai-save">שמור</button>
@@ -428,6 +431,7 @@ td select{padding:3px 6px;font-size:.82rem;width:auto}
   <aside class="agent" aria-label="הסוכן">
     <div class="agent-h"><span class="mark" aria-hidden="true"></span><div><h2>הסוכן</h2><p>רואה את הנתונים שבלוח. מחשב, משווה ומנסח. לא מזיז כסף.</p></div></div>
     <div class="agent-body" id="agent-body">
+      <div class="conn" id="conn" hidden></div>
       <div class="brief" id="brief"><div class="asof">תדריך מהסוכן</div><p class="small muted" style="margin:6px 0 0">עדיין אין תדריך. כשתבקש ממני בשיחה, אכתוב לכאן סיכום ופעולות.</p></div>
       <div id="inbox"></div>
       <div class="msgs" id="msgs"></div>
@@ -984,6 +988,16 @@ function renderBrief(){
   const ib=S.inbox.slice().sort((a,b)=>(b.at||"").localeCompare(a.at||"")).slice(0,6);
   $("#inbox").innerHTML=ib.length?`<div class="eyebrow" style="margin-bottom:6px">משימות לסוכן</div>`+ib.map(i=>`<div class="inbox-item ${i.status==="done"?"done":""}"><div>${esc(i.text)}</div>${i.answer?`<div class="small muted" style="white-space:pre-wrap">${esc(i.answer)}</div>`:`<div class="small muted">ממתין. בקש ממני בשיחה: "טפל במשימות בלוח".</div>`}</div>`).join(""):"";
 }
+function renderConn(){
+  const c=$("#conn"); if(!c)return;
+  const gh=!!CFG.token, ai=!!CFG.aiKey;
+  $("#send").textContent=ai?"שאל עכשיו":"שלח לסוכן";
+  $("#to-inbox").hidden=!ai;
+  if(gh){c.hidden=true;return}
+  c.hidden=false;
+  c.innerHTML=`<b>הסוכן עדיין לא מחובר</b>בלי חיבור ל-GitHub הנתונים נשמרים רק בדפדפן הזה, והסוכן לא רואה אותם ולא יכול לענות.<br><button class="btn sm primary" id="go-settings">לחיבור (פעם אחת, 2 דקות)</button>`;
+  $("#go-settings").onclick=()=>$('#navlist button[data-v="settings"]').click();
+}
 function renderChat(){
   $("#msgs").innerHTML=S.chat.map(m=>`<div class="msg ${m.role==="user"?"u":"a"}">${esc(m.text)}</div>`).join("");
   const b=$("#agent-body"); b.scrollTop=b.scrollHeight;
@@ -1025,7 +1039,7 @@ async function callClaude(body,signal){
   return fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,headers:{"content-type":"application/json","x-api-key":CFG.aiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true",...(body.fallbacks?{"anthropic-beta":"server-side-fallback-2026-07-01"}:{})},body:JSON.stringify(body)});
 }
 async function ask(q){
-  if(!CFG.aiKey)return toast("אין מפתח Claude בהגדרות. שמור את השאלה כמשימה לסוכן, או הוסף מפתח במדור חיבור והגדרות.");
+  if(!CFG.aiKey)return saveTask(q);
   S.chat.push({role:"user",text:q,at:new Date().toISOString()}); renderChat();
   const bubble=document.createElement("div");bubble.className="msg a";bubble.textContent="חושב…";$("#msgs").appendChild(bubble);
   $("#send").disabled=true;$("#stop").hidden=false; ctl=new AbortController();
@@ -1086,22 +1100,24 @@ $("#chips").addEventListener("click",e=>{if(e.target.tagName==="BUTTON")ask(e.ta
 $("#send").onclick=()=>{const q=$("#ask").value.trim();if(!q)return;$("#ask").value="";ask(q)};
 $("#ask").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();$("#send").click()}});
 $("#stop").onclick=()=>ctl&&ctl.abort();
-$("#to-inbox").onclick=async()=>{const q=$("#ask").value.trim();if(!q)return toast("כתוב קודם את המשימה");
+function saveTask(q){
   S.inbox.push({id:"i"+Date.now().toString(36),text:q,at:new Date().toISOString(),status:"open"});
-  $("#ask").value="";renderBrief();markDirty("inbox");
-  toast(CFG.token?"נשמר. הסוכן יטפל בזה בסבב הבא (עד 3 שעות), או מיד אם תבקש ממני בשיחה.":"נשמר בדפדפן בלבד. חבר את GitHub בהגדרות כדי שהסוכן יראה את זה.")};
+  renderBrief();markDirty("inbox");
+  toast(CFG.token?"נשלח לסוכן. התשובה תופיע כאן בסבב הבא (עד 3 שעות), או מיד אם תבקש ממני בשיחה עם Claude.":"נשמר רק בדפדפן. כדי שהסוכן יראה ויענה, חבר את GitHub במדור חיבור והגדרות.");
+}
+$("#to-inbox").onclick=()=>{const q=$("#ask").value.trim();if(!q)return toast("כתוב קודם את המשימה");$("#ask").value="";saveTask(q)};
 
 // ---------- boot ----------
 try{const v=sessionStorage.getItem("cfo-view");if(v){const b=$(`#navlist button[data-v="${v}"]`);if(b)b.click()}}catch{}
-setupVisuals(); localLoad(); renderAll(); renderChat();
+setupVisuals(); localLoad(); renderAll(); renderChat(); renderConn();
 let rsT;addEventListener("resize",()=>{clearTimeout(rsT);rsT=setTimeout(drawStatement,150)});
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>setTimeout(setupVisuals,50));
 document.fonts&&document.fonts.ready.then(drawStatement);
 $("#gh-token").value=CFG.token?"••••••••"+CFG.token.slice(-4):"";$("#gh-repo").value=CFG.repo;$("#ai-key").value=CFG.aiKey?"••••••••"+CFG.aiKey.slice(-4):"";
 $("#gh-save").onclick=async()=>{const t=$("#gh-token").value.trim();if(t&&!t.startsWith("••"))CFG.token=t;CFG.repo=$("#gh-repo").value.trim()||CFG.repo;saveCfg();sha=null;
   $("#gh-status").textContent="בודק…";await pull();$("#gh-status").textContent=$("#sync-dot").classList.contains("on")?"מחובר. הנתונים מסונכרנים עם הסוכן.":$("#sync-txt").textContent;
-  if(dirty.size)push();$("#gh-token").value=CFG.token?"••••••••"+CFG.token.slice(-4):""};
-$("#ai-save").onclick=()=>{const k=$("#ai-key").value.trim();if(k.startsWith("••"))return toast("המפתח כבר שמור");CFG.aiKey=k;saveCfg();$("#ai-key").value=k?"••••••••"+k.slice(-4):"";toast(k?"המפתח נשמר בדפדפן":"המפתח נמחק")};
+  renderConn();if(dirty.size)push();$("#gh-token").value=CFG.token?"••••••••"+CFG.token.slice(-4):""};
+$("#ai-save").onclick=()=>{const k=$("#ai-key").value.trim();if(k.startsWith("••"))return toast("המפתח כבר שמור");CFG.aiKey=k;saveCfg();renderConn();$("#ai-key").value=k?"••••••••"+k.slice(-4):"";toast(k?"המפתח נשמר בדפדפן":"המפתח נמחק")};
 if(CFG.token){pull();setInterval(pull,60000);addEventListener("focus",pull)}
 else{setSync(false,"לא מחובר · שמירה בדפדפן בלבד");const b=$('#navlist button[data-v="settings"]');if(b&&!sessionStorage.getItem("cfo-view"))b.click()}
 </script>
